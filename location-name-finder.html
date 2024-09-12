@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peta Indonesia dengan Pencarian Lokasi</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  
+  <!-- Leaflet Control Geocoder CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  
+  <!-- Custom CSS -->
+  <style>
+    body {
+      font-family: 'San Francisco', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f7f7f7;
+      color: #333;
+    }
+
+    #container {
+      display: flex;
+    }
+
+    #map {
+      width: 70%; /* Ubah lebar map agar lebih kecil */
+      height: 500px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #searchContainer {
+      width: 30%; /* Ubah lebar search box XD */
+      padding: 20px;
+      background-color: #fff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      margin-left: 20px;
+    }
+
+    .leaflet-control-geocoder-results {
+      max-height: 200px;
+      overflow-y: auto;
+      background-color: white;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+
+    .leaflet-control-geocoder-result {
+      padding: 8px;
+      cursor: pointer;
+      background-color: #f0f0f0;
+    }
+
+    .leaflet-control-geocoder-result:hover {
+      background-color: #e0e0e0;
+    }
+
+    .leaflet-control-geocoder-form input {
+      background-color: white;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 8px;
+      font-size: 14px;
+      width: 100%;
+    }
+
+    select, .error-message {
+      font-size: 16px;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      width: 100%;
+    }
+
+    .error-message {
+      color: red;
+      margin-top: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <!-- Peta -->
+    <div id="map"></div>
+    
+    <!-- Container pencarian -->
+    <div id="searchContainer">
+      <!-- Dropdown buat milih 34 provinsi di Indo -->
+      <select id="provinceDropdown" onchange="initializeMapBasedOnProvince()">
+        <option value="">Pilih Provinsi</option>
+        <option value="Aceh">Aceh</option>
+        <option value="Sumatera Utara">Sumatera Utara</option>
+        <option value="Sumatera Barat">Sumatera Barat</option>
+        <option value="Riau">Riau</option>
+        <option value="Jambi">Jambi</option>
+        <option value="Sumatera Selatan">Sumatera Selatan</option>
+        <option value="Bengkulu">Bengkulu</option>
+        <option value="Lampung">Lampung</option>
+        <option value="Kepulauan Bangka Belitung">Kepulauan Bangka Belitung</option>
+        <option value="Kepulauan Riau">Kepulauan Riau</option>
+        <option value="DKI Jakarta">DKI Jakarta</option>
+        <option value="Jawa Barat">Jawa Barat</option>
+        <option value="Jawa Tengah">Jawa Tengah</option>
+        <option value="DI Yogyakarta">DI Yogyakarta</option>
+        <option value="Jawa Timur">Jawa Timur</option>
+        <option value="Banten">Banten</option>
+        <option value="Bali">Bali</option>
+        <option value="Nusa Tenggara Barat">Nusa Tenggara Barat</option>
+        <option value="Nusa Tenggara Timur">Nusa Tenggara Timur</option>
+        <option value="Kalimantan Barat">Kalimantan Barat</option>
+        <option value="Kalimantan Tengah">Kalimantan Tengah</option>
+        <option value="Kalimantan Selatan">Kalimantan Selatan</option>
+        <option value="Kalimantan Timur">Kalimantan Timur</option>
+        <option value="Kalimantan Utara">Kalimantan Utara</option>
+        <option value="Sulawesi Utara">Sulawesi Utara</option>
+        <option value="Sulawesi Tengah">Sulawesi Tengah</option>
+        <option value="Sulawesi Selatan">Sulawesi Selatan</option>
+        <option value="Sulawesi Barat">Sulawesi Barat</option>
+        <option value="Gorontalo">Gorontalo</option>
+        <option value="Sulawesi Tenggara">Sulawesi Tenggara</option>
+        <option value="Maluku">Maluku</option>
+        <option value="Maluku Utara">Maluku Utara</option>
+        <option value="Papua Barat">Papua Barat</option>
+        <option value="Papua">Papua</option>
+      </select>
+
+      <!-- Input dan hasil pencarian Geocoder [dari plugin] -->
+      <div id="geocoder"></div>
+
+      <!-- Pesan error kalo provinsi belum dipilih -->
+      <p class="error-message" id="errorMessage">Silakan pilih provinsi sebelum mencari lokasi.</p>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+  <!-- Leaflet Control Geocoder JS -->
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+  <script>
+    const provinceCoordinates = {
+      "Aceh": [5.550176, 95.319295],
+      "Sumatera Utara": [3.585242, 98.675598],
+      "Sumatera Barat": [-0.94924, 100.35427],
+      "Riau": [0.511648, 101.440322],
+      "Jambi": [1.578464, 103.618953],
+      "Sumatera Selatan": [3.240811, 104.746194],
+      "Bengkulu": [3.800419, 102.265484],
+      "Lampung": [4.494663, 105.263686],
+      "Kepulauan Bangka Belitung": [-2.878340, 106.095139],
+      "Kepulauan Riau": 1.106844, 104.450297],
+      "DKI Jakarta": [-6.208763, 106.845599],
+      "Jawa Barat": [-6.917464, 107.619123],
+      "Jawa Tengah": [-7.014108, 110.414735],
+      "DI Yogyakarta": [-7.797068, 110.364558],
+      "Jawa Timur": [-7.725040, 112.654574],
+      "Banten": [-6.381550, 106.105493],
+      "Bali": [-8.390667, 115.174402],
+      "Nusa Tenggara Barat": [-8.384153, 116.337219],
+      "Nusa Tenggara Timur": [-8.537521, 125.587551],
+      "Kalimantan Barat": -2.115932, 110.978494],
+      "Kalimantan Tengah": -2.166667, 113.916667],
+      "Kalimantan Selatan": -3.351861, 114.596386],
+      "Kalimantan Timur": -1.266667, 116.833333],
+      "Kalimantan Utara": 3.119083, 117.540833],
+      "Sulawesi Utara": 1.259639, 124.505382],
+      "Sulawesi Tengah": -1.851707, 120.157655],
+      "Sulawesi Selatan": -5.145355, 119.405157],
+      "Sulawesi Barat": -2.408222, 118.958889],
+      "Gorontalo": 0.539232, 123.055322],
+      "Sulawesi Tenggara": -4.537405, 122.450041],
+      "Maluku": -3.550556, 128.169444],
+      "Maluku Utara": 0.844333, 127.384444],
+      "Papua Barat": -3.845255, 134.055275],
+      "Papua": -4.074605, 140.774132]
+    };
+
+    // Inisialisasi peta
+    let map = L.map('map').setView([0.7893, 113.9213], 5);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Fungsi untuk mengatur map berdasarkan provinsi
+    function initializeMapBasedOnProvince() {
+      const province = document.getElementById('provinceDropdown').value;
+      const errorMessage = document.getElementById('errorMessage');
+
+      if (province && provinceCoordinates[province]) {
+        const coordinates = provinceCoordinates[province];
+        map.setView(coordinates, 10);
+        errorMessage.style.display = "none";
+      } else {
+        errorMessage.style.display = "block";
+      }
+    }
+
+    // Tambahkan geocoder
+    var geocoder = L.Control.geocoder({
+      defaultMarkGeocode: false,
+    });
+
+    geocoder.addTo(map); 
+
+    var searchContainer = document.getElementById('geocoder');
+    searchContainer.appendChild(geocoder.onAdd(map));
+
+    geocoder.on('markgeocode', function(e) {
+      const province = document.getElementById('provinceDropdown').value;
+      const latlng = e.geocode.center;
+      const errorMessage = document.getElementById('errorMessage');
+
+      if (province) {
+        L.marker(latlng).addTo(map)
+          .bindPopup(`Latitude: ${latlng.lat}, Longitude: ${latlng.lng}`)
+          .openPopup();
+        map.setView(latlng, 14);
+        errorMessage.style.display = "none";
+      } else {
+        errorMessage.style.display = "block";
+      }
+    });
+  </script>
+</body>
+</html>
